@@ -3,41 +3,77 @@
 import * as vscode from 'vscode';
 import { io } from 'socket.io-client';
 import { Server } from 'socket.io';
-import { Socket } from 'dgram';
-import { connected } from 'process';
-import { connect } from 'http2';
+import { notDeepEqual } from 'assert';
+
+class TreeNode
+{
+	public parent: TreeNode | null;
+	public children: TreeNode[] = [];
+
+	public depth: number;
+	public siteNum: number;
+	public time: number;
+
+	public text: string;
+
+	constructor(parent: TreeNode | null, depth: number, siteNum: number, time: number, text: string) 
+	{
+		this.parent = parent;
+		this.depth = depth;
+		this.siteNum = siteNum;
+		this.time = time;
+		this.text = text;
+		if (this.parent) {
+			this.parent.children.push(this);
+		}
+	}
+}
 
 let connectedToServer = false;
 let isSource = false;
+let clientId = -1;
 
-// List of change objects
-let uncommunicatedChanged: TreeNode[] = [];
+// List of change objects that still need to be sent
+let uncommunicatedChanges: TreeNode[] = [];
+let curDoc: TreeNode = new TreeNode(null, 0, -1, 0, '');
 
+function depthToSize(n: number) {
+	return 32 * (2 ** n);
+}
+
+function allocateTreeNode(string: string) {
+
+	return node;	
+} 
+
+// TODO:
+// Properly type this
+let ios: any = null; // should be Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
+let socket: any | null = null; // should be Socket<DefaultEventsMap, DefaultEventsMap>
 const portNum = 3000;
 
 // TODO:
 // How can I tell when someon eleaves the session so that things need to be resynced?
 // 		Oh a message saying you joined and request new info
-
-export function activate(context: vscode.ExtensionContext) {
-	// TODO:
-	// Properly type this idfk what vscode automatically is doing
-	// Properly handle if things disconnect
-	let ios: any = null; // should be Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
-	let socket: any | null = null; // should be Socket<DefaultEventsMap, DefaultEventsMap>
-	
+export function activate(context: vscode.ExtensionContext) {	
 	console.log('"ilybTE" is now active!');
 	let dispStart = vscode.commands.registerCommand('ilybte.startSharing', () => {
 		if (!connectedToServer) {
-			const ios = new Server(portNum);
+			ios = new Server(portNum);
 
 			console.log("Started server at port %s", portNum);
+	
+			ios.on("connection", (socket: any) => { // fix typing
+				console.log("Successfully connected");
 
-			ios.on("connection", (socket) => {
 				socket.emit("hello", "world");
 
 				socket.on("howdy", (arg: string) => {
 					console.log(arg);
+				});	
+
+				socket.on("disconnect", (reason: any) => { // fix typing
+					console.log("Disconnected");
 				});
 			});
 
@@ -48,8 +84,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	let dispJoin = vscode.commands.registerCommand('ilybte.joinSharing', () => {
 		if (!connectedToServer) {
-			
-			const socket = io("ws://localhost:" + portNum);
+			socket = io("ws://localhost:" + portNum);
 
 			console.log("Joined a sharing at port %s", portNum);
 
@@ -61,7 +96,7 @@ export function activate(context: vscode.ExtensionContext) {
 				console.log("Disconnected from socket");
 			})
 
-			socket.on("hello", (arg) => {
+			socket.on("hello", (arg: string) => {
 				console.log(arg);
 			});
 
@@ -71,17 +106,26 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	});
 
-	let clientId = + isSource;
 	
-	function insertNode(node: TreeNode, ) {
-		if (!connectedToServer) { return; }
+	function insertNode(node: TreeNode) {
+		if (isSource) {
+
+		}
 	}	
 	function deleteNode(info: TreeNode) {
 
 	}
 
 	vscode.workspace.onDidChangeTextDocument((event) => {
-		console.log(event.contentChanges);
+		clientId = + isSource;
+		let s = isSource ? ios : socket;
+
+		// let node: TreeNode = TreeNode();
+		
+
+		// s.emit("insert", node);
+
+		console.log(event.contentChanges[0]);
 	});
 
 	context.subscriptions.push(dispStart);
@@ -91,10 +135,12 @@ export function activate(context: vscode.ExtensionContext) {
 // This method is called when your extension is deactivated
 export function deactivate() {
 	// TODO:
-	// Disconnect from the server???
+	// Disable the socket
 	// Dallocate the tree representing document?? sync one last time???
 	if (connectedToServer) {
-
+		if (isSource) {
+			// NEED SOCKET TO BE GLOBAL???
+		}
 	}
 	connectedToServer = false;
 }
@@ -105,25 +151,3 @@ function parseNodeInfo(info: string) {
 }
 
 
-// TODO:
-// Make a global mapping from depth number to a BASE size
-class TreeNode
-{
-	public parent: TreeNode | null;
-	public children: TreeNode[] = [];
-
-	public depth: number;
-	public siteNum: number;
-	public time: number;
-
-	constructor(parent: TreeNode | null, depth: number, siteNum: number, time: number) 
-	{
-		this.parent = parent;
-		this.depth = depth;
-		this.siteNum = siteNum;
-		this.time = time;
-		if (this.parent) {
-			this.parent.children.push(this);
-		}
-	}
-}
