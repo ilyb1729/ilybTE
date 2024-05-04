@@ -10,48 +10,38 @@ let connectedToServer = false;
 
 const portNum = 3000;
 
+// TODO:
+// How can I tell when someon eleaves the session so that things need to be resynced?
+// 		Oh a message saying you joined and request new info
 
-// This method is called when your extension is activated
-// Your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
+	// TODO:
+	// Properly type this idfk what vscode automatically is doing
+	let ios: any = null; // should be Server<DefaultEventsMap, DefaultEventsMap, DefaultEventsMap, any>
+	let socket: any | null = null; // should be Socket<DefaultEventsMap, DefaultEventsMap>
 
 	
-
-	
-	// // Use the console to output diagnostic information (console.log) and errors (console.error)
-	// // This line of code will only e executed once when your extension is activated
-	// console.log('Congratulations, your extension "ilybte" is now active!');
-
-	// // The command has been defined in the package.json file
-	// // Now provide the implementation of the command with registerCommand
-	// // The commandId parameter must match the command field in package.json
-	// let disposable = vscode.commands.registerCommand('ilybte.helloWorld', () => {	
-	// 	// The code you place here will be executed every time your command is executed
-	// 	// Display a message box to the user
-	// 	vscode.window.showInformationMessage('Hello World from I fucking hate myself !!!!!');
-	// });
-
-	// context.subscriptions.push(disposable);
+	console.log('"ilybTE" is now active!');
 
 	let dispStart = vscode.commands.registerCommand('ilybte.startSharing', () => {
-		const io = new Server(3000);
+		const ios = new Server(portNum);
 
-		console.log("Started server at port $s", portNum);
+		console.log("Started server at port %s", portNum);
 
-		io.on("connection", (socket) => {
+		ios.on("connection", (socket) => {
 			socket.emit("hello", "world");
 
-			socket.on("howdy", (arg) => {
+			socket.on("howdy", (arg: string) => {
 				console.log(arg);
 			});
 		});
 
 		connectedToServer = true;
-	});;
+	});
 
 	let dispJoin = vscode.commands.registerCommand('ilybte.joinSharing', () => {
 
-		const socket = io("ws://localhost:3000");
+		const socket = io("ws://localhost:" + portNum);
 
 		console.log("Joined a sharing at port %s", portNum);
 
@@ -61,16 +51,39 @@ export function activate(context: vscode.ExtensionContext) {
 
 		socket.emit("howdy", "stranger");
 	});
+	
+	vscode.workspace.onDidChangeTextDocument((event) => {
+		console.log(event);
+	});
+
+	context.subscriptions.push(dispStart);
+	context.subscriptions.push(dispJoin);
 }
 
 // This method is called when your extension is deactivated
 export function deactivate() {
 	// TODO:
-	// Disconnect from the server
+	// Disconnect from the server???
+	// Dallocate the tree representing document?? sync one last time???
 	if (connectedToServer) {
 
 	}
 	connectedToServer = false;
+}
+
+function parseNodeInfo(info: string) {
+	const obj: TreeNode = JSON.parse(info);
+
+	return obj;
+}
+
+function insertNode(node: TreeNode) {
+
+}
+
+
+function deleteNode(info: TreeNode) {
+
 }
 
 // TODO:
