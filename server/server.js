@@ -1,6 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 // This is just to setup a server to test
+//      npx ts-node ./server/server.ts
 const socket_io_1 = require("socket.io");
 const io = new socket_io_1.Server(3000);
 io.on("connection", (socket) => {
