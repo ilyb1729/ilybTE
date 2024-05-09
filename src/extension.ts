@@ -1,5 +1,6 @@
-// The module 'vscode' contains the VS Code extensibility API
-// Import the module and reference it with the alias vscode in your code below
+// Assumptions
+// Only editing one document at a time
+// Only adding to the end (for now)
 import * as vscode from 'vscode';
 import { io } from 'socket.io-client';
 import { Server } from 'socket.io';
@@ -10,15 +11,17 @@ class TreeNode
 	public parent: TreeNode | null;
 	public children: TreeNode[] = [];
 
+	public childNum: number; // from 0 to 10.000
 	public depth: number;
 	public siteNum: number;
 	public time: number;
 
 	public text: string;
 
-	constructor(parent: TreeNode | null, depth: number, siteNum: number, time: number, text: string) 
+	constructor(parent: TreeNode | null, childNum: number, depth: number, siteNum: number, time: number, text: string) 
 	{
 		this.parent = parent;
+		this.childNum = childNum;
 		this.depth = depth;
 		this.siteNum = siteNum;
 		this.time = time;
@@ -35,14 +38,25 @@ let clientId = -1;
 
 // List of change objects that still need to be sent
 let uncommunicatedChanges: TreeNode[] = [];
-let curDoc: TreeNode = new TreeNode(null, 0, -1, 0, '');
-
+let docTree: TreeNode = new TreeNode(null, 0, 0, -1, 0, '');
 function depthToSize(n: number) {
 	return 32 * (2 ** n);
 }
 
-function allocateTreeNode(string: string) {
 
+// TODO:
+// Proper allocation, right now this is a scuffed hack
+// Split the string up to multiple characters
+let curCount = 0;
+let site0Ct = 0;
+let site1Ct = 0;
+function allocateTreeNode(text: string) {
+	let node = new TreeNode(docTree, curCount, 1, clientId, isSource ? site1Ct : site0Ct, text);
+	if (isSource) {
+		site1Ct++;
+	} else {
+		site0Ct++;
+	}
 	return node;	
 } 
 
@@ -127,6 +141,17 @@ export function activate(context: vscode.ExtensionContext) {
 
 		console.log(event.contentChanges[0]);
 	});
+
+
+	// Build the tree of the current document
+	let activeTE = vscode.window.activeTextEditor;
+	if (activeTE) {
+		let doc: vscode.TextDocument = activeTE.document;
+		let curText = doc.getText();
+		const chars = [...curText];
+		chars.forEach((c, i) => allocateTreeNode(c));
+	}
+
 
 	context.subscriptions.push(dispStart);
 	context.subscriptions.push(dispJoin);
